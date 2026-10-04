@@ -1,0 +1,115 @@
+Task: Extraction of relevant information from articles
+
+Description: The purpose is to return a table in 
+.xls or .xlsx, whichever is more reliable. The model
+of the table is found at <TRS_data_extraction_template.xlsx>.
+This table is composed of 5 tabs, from which the first 
+three are the relevant ones: STUDY, GROUP, OUTCOMES.
+
+Each relevant tab contain variables of interest. The Description
+of each variable is found in <TRS_lista_de_variaveis_e_descricoes.xlsx>
+The extracted information must be filled within a table following the
+model <TRS_data_extraction_template.xlsx>, but with name <output.xls>.
+
+First, the article(s) in .pdf within the folder <pdfs_extracted> should be converted
+into .txt file and saved within the folder <pdfs_extracted> following the scope. Then, 
+the .txt file should be used for extracting the information of each variable using
+the Mistral prompt as exemplified in the scope. The extracted information must not
+be a made-up information! For validation purposes, a second table must be made
+<validation.xls>, where it is discriminated in which line of the .txt file the
+information was retrieved.
+
+In case information is not available within the file, fill the variable space within
+'NFAS' which stands for Not Found by the Automated Search. 
+
+The code for doing the procedure should be returned in python which can be pasted
+within a python notebook, or a python notebook itsef if possible. Make a control
+file, which indicates which articles are already processed and those who still
+need to be processed. This way if the process gets interrupted, it can continue
+from where it was stoped. Also, incorporate progress bars to the code, so we can check the
+process. 
+
+Scope: The files within the root folder follows the structure bellow:
+.
+├── LLM_instructions.txt
+├── extraction.ipynb
+├── guide_docs
+│   ├── TRS_data_extraction_template.xlsx
+│   ├── TRS_data_extraction_template.xlsx:Zone.Identifier
+│   ├── TRS_lista_de_variaveis_e_descricoes.docx:Zone.Identifier
+│   ├── TRS_lista_de_variaveis_e_descricoes.xlsx
+│   └── TRS_lista_de_variaveis_e_descricoes.xlsx:Zone.Identifier
+├── pdfs_extracted
+│   └── Capogrosso2013
+└── pdfs_to_extract
+    ├── Capogrosso2013.pdf
+    └── Capogrosso2013.pdf:Zone.Identifier
+
+The codes that tested that must be used as a basis are bellow:
+
+# Packages
+import os
+import subprocess
+from pathlib import Path
+from docx import Document
+from mistralai.client import Mistral
+import pandas as pd
+
+# Library
+def pdf_to_text(pdf_path: str, txt_path: str) -> None:
+    """Convert a PDF file to text using pdftotext."""
+    subprocess.run(
+        ["pdftotext", "-layout", pdf_path, txt_path],
+        check=True,              # raises CalledProcessError on failure
+        capture_output=True,
+        text=True,
+    )
+
+# usage example:
+# pdf_to_text("input.pdf", "output.txt")
+
+# Convertion from .pdf to .txt
+root_folder = '/home/paulocabral/Documents/AI_article_data_extraction/'
+
+target_orig_folder = "pdfs_to_extract"
+target_dest_folder = "pdfs_extracted"
+
+target_pdf = "Capogrosso2013.pdf"
+target_txt = target_pdf.split(".")[0]
+
+complete_orig = os.path.join(root_folder, target_orig_folder)
+complete_orig = os.path.join(complete_orig, target_pdf)
+#
+complete_dest = os.path.join(root_folder, target_dest_folder)
+complete_dest = os.path.join(complete_dest, target_txt)
+
+pdf_to_text(complete_orig, complete_dest)
+
+
+# Configuring Mistral
+os.environ["MISTRAL_API_KEY"] = "mstrl_M4JnVaCVSKLmd0VerknyMgYB2K4B47q9_1747HI"
+api_key = os.environ["MISTRAL_API_KEY"]
+client = Mistral(api_key=api_key)
+
+# Testing functionality
+model = "mistral-large-latest"
+messages = [{"role": "user", "content": "My name is Paul. What is my name?"}]
+
+chat_response = client.chat.complete(model=model, messages=messages)
+print(chat_response.choices[0].message.content)
+
+# Handling the model table containing the variables to extract
+guide_folder = os.path.join(root_folder, "guide_docs")
+target_excel_file = "TRS_data_extraction_template.xlsx"
+
+# Lists the names of all tabs in the file
+tabs = pd.ExcelFile( os.path.join(guide_folder, target_excel_file)).sheet_names
+print(tabs)
+
+# Reads a specific tab
+df = pd.read_excel(os.path.join(guide_folder, target_excel_file), sheet_name=tabs[0])
+
+# Printing variables
+variables_to_extract = df.columns
+print(variables_to_extract)
+
